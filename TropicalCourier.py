@@ -1,7 +1,7 @@
 import mechanize
 from bs4 import BeautifulSoup
 from Tkinter import *
-
+from config import account_number
 
 class TropicalCourier:
     def __init__(self, master):
@@ -26,7 +26,7 @@ class TropicalCourier:
         br.open(url)
         br.select_form(nr=0)  # to select the first form
 
-        br['TextBox1'] = '11691'
+        br['TextBox1'] = account_number
         br.find_control("Button2").readonly = False
         search_response = br.submit("Button2")
 
