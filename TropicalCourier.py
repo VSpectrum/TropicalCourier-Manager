@@ -1,7 +1,12 @@
 import mechanize
 from bs4 import BeautifulSoup
+
+#run once when the app starts to acquire amazon order details:
+#import amazon_interface
+
 from Tkinter import *
-from config import account_number
+
+from config import account_number, amazon_login_email, amazon_login_password
 
 class TropicalCourier:
     def __init__(self, master):
@@ -38,6 +43,12 @@ class TropicalCourier:
         total_cost = '{0:.2f}'.format(sum(costs))
         total_string = 'Total Sum to pick up everything: $' + total_cost
         self.showData['text'] = total_string
+
+        td_elements = soup.find_all('td', {'align': 'left'})
+        packages = [td.renderContents() for td in td_elements if '\xc2\xa0' not in td.renderContents()]
+        #packages = [package for package in packages if '\\xc2' not in package]
+
+        print packages
 
 
 root = Tk()
