@@ -1,11 +1,10 @@
 import mechanize
 from bs4 import BeautifulSoup
 
-#run once when the app starts to acquire amazon order details:
-#import amazon_interface
+from amazon_interface import get_amazon_data
 
 from Tkinter import *
-
+import webbrowser
 from config import account_number, amazon_login_email, amazon_login_password
 
 class TropicalCourier:
@@ -16,11 +15,45 @@ class TropicalCourier:
         frame = Frame(master)
         frame.pack()
 
-        self.gdButton = Button(frame, text="Get Data", command=self.get_data)
-        self.gdButton.pack(side=TOP)
+        midframe = Frame(root)
+        midframe.pack(side=TOP)
 
-        self.showData = Label(frame, text="")
+        bottomframe = Frame(root)
+        bottomframe.pack(side=BOTTOM)
+
+        self.gdButton = Button(frame, text="Get Amazon Data", command=self.amazon_data)
+        self.gdButton.pack(side=LEFT)
+
+        self.gdButton = Button(frame, text="Get Courier Data", command=self.get_data)
+        self.gdButton.pack(side=LEFT)
+
+
+        self.scrollbar = Scrollbar(midframe, orient=VERTICAL)
+        self.scrollbar.config(command=self.yview)
+        self.scrollbar.pack(side=RIGHT, fill=Y)
+        self.listbox = Listbox(midframe, height=15, width=30, yscrollcommand=self.scrollbar.set)
+        self.listbox.bind('<Double-Button-1>', self.selection)
+        self.listbox.pack(side=TOP, fill=BOTH, expand=1)
+
+        self.showData = Label(bottomframe, text="")
         self.showData.pack(side=BOTTOM)
+
+    def yview(self, *args):
+        apply(self.listbox.yview, args)
+
+    def selection(self, event):
+        widget = event.widget
+        selection = widget.curselection()
+        value = widget.get(selection[0])
+
+        ordersdict = {}
+
+        with open("amazon_orders.txt", 'r') as amazonorders:
+            for line in amazonorders:
+                stringsplit = line.split('|')
+                ordersdict[stringsplit[0]]=stringsplit[1]
+
+        webbrowser.open(ordersdict[[item for item in ordersdict.keys() if item in value][0]])
 
     def get_data(self):
         br = mechanize.Browser()
@@ -45,11 +78,15 @@ class TropicalCourier:
         self.showData['text'] = total_string
 
         td_elements = soup.find_all('td', {'align': 'left'})
-        packages = [td.renderContents() for td in td_elements if '\xc2\xa0' not in td.renderContents()]
-        #packages = [package for package in packages if '\\xc2' not in package]
+        packages = [td.renderContents().replace('# ','').upper() for td in td_elements if '\xc2\xa0' not in td.renderContents()]
+
+        for package in packages:
+            self.listbox.insert(END, package)
 
         print packages
 
+    def amazon_data(self):
+        while(get_amazon_data()=='Could not automatically solve captcha.'): pass
 
 root = Tk()
 TC = TropicalCourier(root)
