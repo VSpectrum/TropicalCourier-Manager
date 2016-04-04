@@ -12,8 +12,10 @@ from config import secret_key
 from os.path import exists
 
 
-import base64
+from base64 import b64decode
 from simplecrypt import decrypt
+
+
 
 class TropicalCourier:
     def __init__(self, master):
@@ -114,7 +116,7 @@ class TropicalCourier:
                 logincred = loginfile.readlines()
             ama_email = logincred[0].split(':')[1]
             passwd = logincred[1].split(':')[1].rstrip()
-            passwd = base64.b64decode(passwd)
+            passwd = b64decode(passwd)
             print passwd
             ama_pass = decrypt(secret_key, passwd)
             get_amazon_data(ama_email, ama_pass)

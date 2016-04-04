@@ -2,13 +2,13 @@ from config import secret_key
 from simplecrypt import encrypt, decrypt
 from Tkinter import *
 from amazon_interface import get_amazon_data
-import base64
+from base64 import b64decode, b64encode
 
 def encrypted(raw):
-    return base64.b64encode(encrypt(secret_key, raw))
+    return b64encode(encrypt(secret_key, raw))
 
 def decrypted(enc):
-    return base64.b64decode(decrypt(secret_key, enc))
+    return b64decode(decrypt(secret_key, enc))
 
 class AmazonInitialLogin():
     def __init__(self, master):

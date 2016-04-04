@@ -11,8 +11,6 @@ from pytesseract import image_to_string
 
 from collections import defaultdict
 
-from time import sleep
-
 def get_amazon_data(amazon_login_email, amazon_login_password):
     print 'running get_amazon_data'
     phantomjs_executable = ''
