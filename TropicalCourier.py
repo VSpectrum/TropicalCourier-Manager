@@ -5,28 +5,40 @@ from amazon_interface import get_amazon_data
 
 from Tkinter import *
 import webbrowser
-from config import account_number, amazon_login_email, amazon_login_password
+
+from login import AmazonInitialLogin, decrypted
+from config import secret_key
+
+from os.path import exists
+
+
+import base64
+from simplecrypt import decrypt
 
 class TropicalCourier:
     def __init__(self, master):
         master.minsize(width=300, height=300)
         master.maxsize(width=300, height=300)
 
+        master.title("Tropical Courier Manager")
+        img = Image("photo", file="TC.gif")
+        master.tk.call('wm', 'iconphoto', master._w, img)
+
         frame = Frame(master)
         frame.pack()
 
-        midframe = Frame(root)
+
+        midframe = Frame(master)
         midframe.pack(side=TOP)
 
-        bottomframe = Frame(root)
+        bottomframe = Frame(master)
         bottomframe.pack(side=BOTTOM)
 
-        self.gdButton = Button(frame, text="Get Amazon Data", command=self.amazon_data)
-        self.gdButton.pack(side=LEFT)
+        self.gdButton1 = Button(frame, text="Get Amazon Data", command=self.amazon_data)
+        self.gdButton1.pack(side=LEFT)
 
         self.gdButton = Button(frame, text="Get Courier Data", command=self.get_data)
         self.gdButton.pack(side=LEFT)
-
 
         self.scrollbar = Scrollbar(midframe, orient=VERTICAL)
         self.scrollbar.config(command=self.yview)
@@ -51,43 +63,67 @@ class TropicalCourier:
         with open("amazon_orders.txt", 'r') as amazonorders:
             for line in amazonorders:
                 stringsplit = line.split('|')
-                ordersdict[stringsplit[0]]=stringsplit[1]
+                ordersdict[stringsplit[0]] = stringsplit[1]
 
         webbrowser.open(ordersdict[[item for item in ordersdict.keys() if item in value][0]])
 
     def get_data(self):
-        br = mechanize.Browser()
-        br.set_handle_robots(False)
-        br.set_handle_refresh(False)  # can sometimes hang without this
+        if exists('login'):
+            logincred = []
+            with open('login', 'r') as loginfile:
+                logincred = loginfile.readlines()
+            account_number = logincred[2].split(':')[1]
 
-        url = r"http://track.shiptropical.com/"
-        br.open(url)
-        br.select_form(nr=0)  # to select the first form
+            br = mechanize.Browser()
+            br.set_handle_robots(False)
+            br.set_handle_refresh(False)  # can sometimes hang without this
 
-        br['TextBox1'] = account_number
-        br.find_control("Button2").readonly = False
-        search_response = br.submit("Button2")
+            url = r"http://track.shiptropical.com/"
+            br.open(url)
+            br.select_form(nr=0)  # to select the first form
 
-        response = search_response.read()
-        soup = BeautifulSoup(response, "html.parser")
+            br['TextBox1'] = account_number
+            br.find_control("Button2").readonly = False
+            search_response = br.submit("Button2")
 
-        td_elements = soup.find_all('td', {'align': 'right'})
-        costs = [float(td.renderContents()[1::]) for td in td_elements]
-        total_cost = '{0:.2f}'.format(sum(costs))
-        total_string = 'Total Sum to pick up everything: $' + total_cost
-        self.showData['text'] = total_string
+            response = search_response.read()
+            soup = BeautifulSoup(response, "html.parser")
 
-        td_elements = soup.find_all('td', {'align': 'left'})
-        packages = [td.renderContents().replace('# ','').upper() for td in td_elements if '\xc2\xa0' not in td.renderContents()]
+            td_elements = soup.find_all('td', {'align': 'right'})
+            costs = [float(td.renderContents()[1::]) for td in td_elements]
+            total_cost = '{0:.2f}'.format(sum(costs))
+            total_string = 'Total Sum to pick up everything: $' + total_cost
+            self.showData['text'] = total_string
 
-        for package in packages:
-            self.listbox.insert(END, package)
+            td_elements = soup.find_all('td', {'align': 'left'})
+            packages = [td.renderContents().replace('# ','').upper() for td in td_elements if '\xc2\xa0' not in td.renderContents()]
 
-        print packages
+            for package in packages:
+                self.listbox.insert(END, package)
+
+            print packages
+        else:
+            #Aroot.mainloop()
+            window = Toplevel()
+            AmaInit = AmazonInitialLogin(window)
+            window.focus_set()
 
     def amazon_data(self):
-        while(get_amazon_data()=='Could not automatically solve captcha.'): pass
+        if exists('login'):
+            with open('login', 'rb+') as loginfile:
+                logincred = loginfile.readlines()
+            ama_email = logincred[0].split(':')[1]
+            passwd = logincred[1].split(':')[1].rstrip()
+            passwd = base64.b64decode(passwd)
+            print passwd
+            ama_pass = decrypt(secret_key, passwd)
+            get_amazon_data(ama_email, ama_pass)
+            self.gdButton1['state'] = 'disabled'
+        else:
+            window = Toplevel()
+            AmaInit = AmazonInitialLogin(window)
+            window.focus_set()
 
-root = Tk()
-TC = TropicalCourier(root)
-root.mainloop()
+TCroot = Tk()
+TC = TropicalCourier(TCroot)
+TCroot.mainloop()

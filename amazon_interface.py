@@ -1,4 +1,3 @@
-from config import account_number, amazon_login_email, amazon_login_password
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities #Amazon requires certain user-agents
 from bs4 import BeautifulSoup
@@ -12,9 +11,10 @@ from pytesseract import image_to_string
 
 from collections import defaultdict
 
+from time import sleep
 
-def get_amazon_data():
-
+def get_amazon_data(amazon_login_email, amazon_login_password):
+    print 'running get_amazon_data'
     phantomjs_executable = ''
     if os.name=='nt': phantomjs_executable = "phantomjs.exe"
     else: phantomjs_executable = "phantomjs"
@@ -28,11 +28,9 @@ def get_amazon_data():
     dcap["phantomjs.page.settings.userAgent"] = user_agent
 
     browser = webdriver.PhantomJS(phantomjs,desired_capabilities=dcap)
+    #browser = webdriver.Firefox()
 
     try:
-
-        #browser.set_window_size(1024, 760)
-
         amazon_login_url = "https://www.amazon.com/ap/signin?_encoding=UTF8&openid.assoc_handle=usflex&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.mode=checkid_setup&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.ns.pape=http%3A%2F%2Fspecs.openid.net%2Fextensions%2Fpape%2F1.0&openid.pape.max_auth_age=0&openid.return_to=https%3A%2F%2Fwww.amazon.com%2Fgp%2Fyour-account%2Forder-history%3Fie%3DUTF8%26ref_%3Dya_orders_ap&pageId=webcs-yourorder&showRmrMe=1"
 
         browser.get(amazon_login_url)
@@ -46,16 +44,40 @@ def get_amazon_data():
 
         response = browser.page_source
         soup = BeautifulSoup(response, "html5lib")
-        captcha_element = soup.find('img', id='auth-captcha-image')
-        if captcha_element.has_attr('src'):
-            captcha_img_url = captcha_element['src']
-            captcha_response = requests.get(captcha_img_url)
 
-            img = Image.open(StringIO(captcha_response.content))
-            captcha_guess = image_to_string(img)
-            if ' ' in captcha_guess:
+        login_errors = soup.findAll("span", {"class": "a-list-item"}, text=re.compile("Your email or password was incorrect. Please try again."))
+        if login_errors:
+            return "Login Error"
+        # login_errors = soup.findAll("h4", {"class": "a-alert-heading"}, text=re.compile("There was a problem"))
+        # if login_errors:
+        #     return "There was a problem"
+
+        captcha_element = soup.find('img', id='auth-captcha-image')
+        refreshtimes = 0
+        captcha_guess = ''
+        if captcha_element:
+            while refreshtimes<15:
+                captcha_element = soup.find('img', id='auth-captcha-image')
+                captcha_img_url = captcha_element['src']
+
+                print captcha_img_url
+                captcha_response = requests.get(captcha_img_url)
+
+                img = Image.open(StringIO(captcha_response.content))
+                captcha_guess = image_to_string(img)
+                print 'guess: '+captcha_guess
+
+                if (' ' in captcha_guess) == True or captcha_guess == '':
+                    refreshcap = browser.find_element_by_id("auth-captcha-refresh-link")
+                    refreshcap.click()
+                else:
+                    break
+                refreshtimes += 1
+
+            if refreshtimes == 14:
                 raise ValueError('Could not automatically solve captcha.')
 
+            print 'chosen guess: '+captcha_guess
 
             password = browser.find_element_by_name('password')
             password.send_keys(amazon_login_password)
@@ -64,10 +86,17 @@ def get_amazon_data():
             form = browser.find_element_by_name('signIn')
             form.submit()
 
-
         response = browser.page_source
         track_package = []
         soup = BeautifulSoup(response, "html5lib")
+
+        login_errors = soup.findAll("span", {"class": "a-list-item"}, text=re.compile("Your email or password was incorrect. Please try again."))
+        if login_errors:
+            return "Login Error"
+        # login_errors = soup.findAll("h4", {"class": "a-alert-heading"}, text=re.compile("There was a problem"))
+        # if login_errors:
+        #     return "There was a problem"
+
         for link in soup.findAll('a', text=re.compile("Track package")):
             track_package.append('http://amazon.com'+link['href'])
 
@@ -90,12 +119,13 @@ def get_amazon_data():
                 for TBAkey in TBA_dict.keys():
                     for value in TBA_dict[TBAkey]:
                         ama.write(TBAkey+"|"+value+"\n")
-        browser.quit()
-        print 'Successfully gathered Amazon products\' tracking numbers.'
+
+            print 'Successfully gathered Amazon products\' tracking numbers.'
+        #browser.quit()
         return 'Success'
 
     except ValueError:
-        browser.quit()
+        #browser.quit()
         return ValueError
 
-#get_amazon_data()
+#print get_amazon_data(amazon_login_email, amazon_login_password)
