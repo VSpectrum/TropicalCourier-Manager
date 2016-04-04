@@ -119,11 +119,11 @@ def get_amazon_data(amazon_login_email, amazon_login_password):
                         ama.write(TBAkey+"|"+value+"\n")
 
             print 'Successfully gathered Amazon products\' tracking numbers.'
-        #browser.quit()
+        browser.quit()
         return 'Success'
 
     except ValueError:
-        #browser.quit()
+        browser.quit()
         return ValueError
 
 #print get_amazon_data(amazon_login_email, amazon_login_password)
