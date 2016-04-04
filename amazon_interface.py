@@ -41,7 +41,7 @@ def get_amazon_data(amazon_login_email, amazon_login_password):
         form.submit()
 
         response = browser.page_source
-        soup = BeautifulSoup(response, "html5lib")
+        soup = BeautifulSoup(response)
 
         login_errors = soup.findAll("span", {"class": "a-list-item"}, text=re.compile("Your email or password was incorrect. Please try again."))
         if login_errors:
@@ -86,7 +86,7 @@ def get_amazon_data(amazon_login_email, amazon_login_password):
 
         response = browser.page_source
         track_package = []
-        soup = BeautifulSoup(response, "html5lib")
+        soup = BeautifulSoup(response)
 
         login_errors = soup.findAll("span", {"class": "a-list-item"}, text=re.compile("Your email or password was incorrect. Please try again."))
         if login_errors:
@@ -105,7 +105,7 @@ def get_amazon_data(amazon_login_email, amazon_login_password):
                 browser.get(url)
                 response = browser.page_source
 
-                soup = BeautifulSoup(response, "html5lib")
+                soup = BeautifulSoup(response)
                 search = "Tracking #:"
 
                 order_url = soup.findAll('a', text=re.compile("Order Details"))[0]['href']

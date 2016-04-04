@@ -100,6 +100,8 @@ class TropicalCourier:
             td_elements = soup.find_all('td', {'align': 'left'})
             packages = [td.renderContents().replace('# ','').upper() for td in td_elements if '\xc2\xa0' not in td.renderContents()]
 
+            self.listbox.delete(0, END)
+
             for package in packages:
                 self.listbox.insert(END, package)
 
