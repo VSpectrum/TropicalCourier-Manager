@@ -28,8 +28,8 @@ def get_amazon_data(amazon_login_email, amazon_login_password):
     dcap = dict(DesiredCapabilities.PHANTOMJS)
     dcap["phantomjs.page.settings.userAgent"] = user_agent
 
-    # browser = webdriver.PhantomJS(phantomjs,desired_capabilities=dcap)
-    browser = webdriver.Firefox()
+    browser = webdriver.PhantomJS(phantomjs, desired_capabilities=dcap)
+    # browser = webdriver.Firefox()
 
     try:
         amazon_login_url = "https://www.amazon.com/ap/signin?_encoding=UTF8&openid.assoc_handle=usflex&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.mode=checkid_setup&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.ns.pape=http%3A%2F%2Fspecs.openid.net%2Fextensions%2Fpape%2F1.0&openid.pape.max_auth_age=0&openid.return_to=https%3A%2F%2Fwww.amazon.com%2Fgp%2Fyour-account%2Forder-history%3Fie%3DUTF8%26ref_%3Dya_orders_ap&pageId=webcs-yourorder&showRmrMe=1"
@@ -102,51 +102,56 @@ def get_amazon_data(amazon_login_email, amazon_login_password):
             if login_errors:
                 return "Login Error"
 
+        if soup.find("input", {"name": "email"}) == None:
             pickle.dump(browser.get_cookies(), open("cookies.pkl", "wb"))
 
-        response = browser.page_source
-        soup = BeautifulSoup(response)
-        track_package = []
+            response = browser.page_source
+            soup = BeautifulSoup(response)
+            track_package = []
 
-        # first page:
-        for link in soup.findAll('a', text=re.compile("Track package")):
-            track_package.append('http://amazon.com'+link['href'])
+            # first page:
+            for link in soup.findAll('a', text=re.compile("Track package")):
+                track_package.append('http://amazon.com' + link['href'])
 
-        # second page:
-        browser.get(
-            'http://amazon.com' + "/gp/your-account/order-history/ref=oh_aui_pagination_1_2?ie=UTF8&orderFilter=months-6&search=&startIndex=10")
-        response = browser.page_source
-        soup = BeautifulSoup(response)
+            # second page:
+            browser.get(
+                'http://amazon.com' + "/gp/your-account/order-history/ref=oh_aui_pagination_1_2?ie=UTF8&orderFilter=months-6&search=&startIndex=10")
+            response = browser.page_source
+            soup = BeautifulSoup(response)
 
-        for link in soup.findAll('a', text=re.compile("Track package")):
-            track_package.append('http://amazon.com' + link['href'])
+            for link in soup.findAll('a', text=re.compile("Track package")):
+                track_package.append('http://amazon.com' + link['href'])
 
-        TBA_dict = defaultdict(list)
+            TBA_dict = defaultdict(list)
 
-        if track_package:
-            for url in track_package:
-                browser.get(url)
-                response = browser.page_source
+            if track_package:
+                for url in track_package:
+                    browser.get(url)
+                    response = browser.page_source
 
-                soup = BeautifulSoup(response)
-                search = "Tracking #:"
+                    soup = BeautifulSoup(response)
+                    search = "Tracking #:"
 
-                order_url = soup.findAll('a', text=re.compile("Order Details"))[0]['href']
+                    order_url = soup.findAll('a', text=re.compile("Order Details"))[0]['href']
 
-                for div in soup.findAll('div', text=re.compile(search)):
-                    TBA_dict[div.string[div.string.index(search) + len(search):].strip()].append(order_url)
+                    for div in soup.findAll('div', text=re.compile(search)):
+                        TBA_dict[div.string[div.string.index(search) + len(search):].strip()].append(order_url)
 
-            with open("amazon_orders.txt", 'w+') as ama:
-                for TBAkey in TBA_dict.keys():
-                    for value in TBA_dict[TBAkey]:
-                        ama.write(TBAkey+"|"+value+"\n")
+                with open("amazon_orders.txt", 'w+') as ama:
+                    for TBAkey in TBA_dict.keys():
+                        for value in TBA_dict[TBAkey]:
+                            ama.write(TBAkey + "|" + value + "\n")
 
-            print 'Successfully gathered Amazon products\' tracking numbers.'
-        #browser.quit()
-        return 'Success'
+                print 'Successfully gathered Amazon products\' tracking numbers.'
+                browser.quit()
+                return 'Success'
+
+        else:
+            browser.quit()
+            return 'Login Error'
 
     except ValueError as e:
-        #browser.quit()
+        browser.quit()
         print e
         return ValueError
 
