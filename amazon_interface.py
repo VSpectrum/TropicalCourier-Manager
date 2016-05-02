@@ -11,6 +11,8 @@ from pytesseract import image_to_string
 
 from collections import defaultdict
 
+from time import sleep
+
 def get_amazon_data(amazon_login_email, amazon_login_password):
     print 'running get_amazon_data'
     phantomjs_executable = ''
@@ -119,11 +121,12 @@ def get_amazon_data(amazon_login_email, amazon_login_password):
                         ama.write(TBAkey+"|"+value+"\n")
 
             print 'Successfully gathered Amazon products\' tracking numbers.'
-        browser.quit()
+        # browser.quit()
         return 'Success'
 
-    except ValueError:
-        browser.quit()
+    except ValueError as e:
+        # browser.quit()
+        print e
         return ValueError
 
 #print get_amazon_data(amazon_login_email, amazon_login_password)

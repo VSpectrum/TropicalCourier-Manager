@@ -11,16 +11,13 @@ from config import secret_key
 
 from os.path import exists
 
-
-from base64 import b64decode
+import base64
 from simplecrypt import decrypt
-
-
 
 class TropicalCourier:
     def __init__(self, master):
-        master.minsize(width=300, height=300)
-        master.maxsize(width=300, height=300)
+        master.minsize(width=400, height=300)
+        master.maxsize(width=400, height=300)
 
         master.title("Tropical Courier Manager")
         img = Image("photo", file="TC.gif")
@@ -45,7 +42,7 @@ class TropicalCourier:
         self.scrollbar = Scrollbar(midframe, orient=VERTICAL)
         self.scrollbar.config(command=self.yview)
         self.scrollbar.pack(side=RIGHT, fill=Y)
-        self.listbox = Listbox(midframe, height=15, width=30, yscrollcommand=self.scrollbar.set)
+        self.listbox = Listbox(midframe, height=15, width=50, yscrollcommand=self.scrollbar.set)
         self.listbox.bind('<Double-Button-1>', self.selection)
         self.listbox.pack(side=TOP, fill=BOTH, expand=1)
 
@@ -92,18 +89,57 @@ class TropicalCourier:
             soup = BeautifulSoup(response, "html.parser")
 
             td_elements = soup.find_all('td', {'align': 'right'})
-            costs = [float(td.renderContents()[1::]) for td in td_elements]
+            costs = [float(td.renderContents()[1::].replace(',', '')) for td in td_elements]
             total_cost = '{0:.2f}'.format(sum(costs))
             total_string = 'Total Sum to pick up everything: $' + total_cost
             self.showData['text'] = total_string
 
-            td_elements = soup.find_all('td', {'align': 'left'})
-            packages = [td.renderContents().replace('# ','').upper() for td in td_elements if '\xc2\xa0' not in td.renderContents()]
+            # td_elements = soup.find_all('td', {'align': 'left'})
+
+
+            processing_miami = soup.find('div', class_="Pan3")
+            processing = processing_miami.find_all('td')
+            if processing_miami:
+                processing = [item.renderContents().replace('# ', '').upper() for item in processing]
+            else:
+                processing = []
+
+            in_transit = soup.find('div', class_="Pan4")
+            transit = in_transit.select('tr > td:nth-of-type(2)')
+            if in_transit:
+                transit = [item.renderContents().replace('# ', '').upper() for item in transit]
+            else:
+                in_transit = []
+
+            in_trinidad = soup.find('div', class_="Pan1")
+            trini = in_trinidad.select('tr > td:nth-of-type(2)')
+            if in_trinidad:
+                trini = [item.renderContents().replace('# ', '').upper() for item in trini]
+            else:
+                trini = []
+
+            ready_for_pickup = soup.find('div', class_="Pan2")
+            ready = ready_for_pickup.select('tr > td:nth-of-type(2)')
+            if ready_for_pickup:
+                ready = [item.renderContents().replace('# ', '').upper() for item in ready]
+            else:
+                ready = []
+
+            td_elements = soup.select("tr > td:nth-of-type(2)")
+            packages = [td.renderContents().replace('# ', '').upper() for td in td_elements]
+            packages = processing + transit + trini + ready
 
             self.listbox.delete(0, END)
-
             for package in packages:
                 self.listbox.insert(END, package)
+                if package in processing:
+                    self.listbox.itemconfig(END, bg='ivory')
+                elif package in transit:
+                    self.listbox.itemconfig(END, bg='mintcream')
+                elif package in trini:
+                    self.listbox.itemconfig(END, bg='ghostwhite')
+                elif package in ready:
+                    self.listbox.itemconfig(END, bg='azure')
 
             print packages
         else:
@@ -118,10 +154,10 @@ class TropicalCourier:
                 logincred = loginfile.readlines()
             ama_email = logincred[0].split(':')[1]
             passwd = logincred[1].split(':')[1].rstrip()
-            passwd = b64decode(passwd)
+            passwd = base64.b64decode(passwd)
             print passwd
             ama_pass = decrypt(secret_key, passwd)
-            get_amazon_data(ama_email, ama_pass)
+            print get_amazon_data(ama_email, ama_pass)
             self.gdButton1['state'] = 'disabled'
         else:
             window = Toplevel()
