@@ -1,3 +1,4 @@
+import pickle
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities #Amazon requires certain user-agents
 from bs4 import BeautifulSoup
@@ -27,78 +28,98 @@ def get_amazon_data(amazon_login_email, amazon_login_password):
     dcap = dict(DesiredCapabilities.PHANTOMJS)
     dcap["phantomjs.page.settings.userAgent"] = user_agent
 
-    browser = webdriver.PhantomJS(phantomjs,desired_capabilities=dcap)
-    #browser = webdriver.Firefox()
+    # browser = webdriver.PhantomJS(phantomjs,desired_capabilities=dcap)
+    browser = webdriver.Firefox()
 
     try:
         amazon_login_url = "https://www.amazon.com/ap/signin?_encoding=UTF8&openid.assoc_handle=usflex&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.mode=checkid_setup&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&openid.ns.pape=http%3A%2F%2Fspecs.openid.net%2Fextensions%2Fpape%2F1.0&openid.pape.max_auth_age=0&openid.return_to=https%3A%2F%2Fwww.amazon.com%2Fgp%2Fyour-account%2Forder-history%3Fie%3DUTF8%26ref_%3Dya_orders_ap&pageId=webcs-yourorder&showRmrMe=1"
 
         browser.get(amazon_login_url)
 
-        username = browser.find_element_by_name('email')
-        username.send_keys(amazon_login_email)
-        password = browser.find_element_by_name('password')
-        password.send_keys(amazon_login_password)
-        form = browser.find_element_by_name('signIn')
-        form.submit()
+        if os.path.isfile("cookies.pkl"):
+            browser.get("https://www.amazon.com/")
+            cookies = pickle.load(open("cookies.pkl", "rb"))
+            for cookie in cookies:
+                browser.add_cookie(cookie)
+            browser.get("https://www.amazon.com/gp/css/order-history/")
 
         response = browser.page_source
         soup = BeautifulSoup(response)
 
-        login_errors = soup.findAll("span", {"class": "a-list-item"}, text=re.compile("Your email or password was incorrect. Please try again."))
-        if login_errors:
-            return "Login Error"
-        # login_errors = soup.findAll("h4", {"class": "a-alert-heading"}, text=re.compile("There was a problem"))
-        # if login_errors:
-        #     return "There was a problem"
-
-        captcha_element = soup.find('img', id='auth-captcha-image')
-        refreshtimes = 0
-        captcha_guess = ''
-        if captcha_element:
-            while refreshtimes<15:
-                captcha_element = soup.find('img', id='auth-captcha-image')
-                captcha_img_url = captcha_element['src']
-
-                print captcha_img_url
-                captcha_response = requests.get(captcha_img_url)
-
-                img = Image.open(StringIO(captcha_response.content))
-                captcha_guess = image_to_string(img)
-                print 'guess: '+captcha_guess
-
-                if (' ' in captcha_guess) == True or captcha_guess == '':
-                    refreshcap = browser.find_element_by_id("auth-captcha-refresh-link")
-                    refreshcap.click()
-                else:
-                    break
-                refreshtimes += 1
-
-            if refreshtimes == 14:
-                raise ValueError('Could not automatically solve captcha.')
-
-            print 'chosen guess: '+captcha_guess
-
+        if soup.find("input", {"name": "email"}):
+            username = browser.find_element_by_name('email')
+            username.clear()
+            username.send_keys(amazon_login_email)
             password = browser.find_element_by_name('password')
             password.send_keys(amazon_login_password)
-            guess = browser.find_element_by_name('guess')
-            guess.send_keys(captcha_guess)
             form = browser.find_element_by_name('signIn')
             form.submit()
 
+            response = browser.page_source
+            soup = BeautifulSoup(response)
+
+            login_errors = soup.findAll("span", {"class": "a-list-item"},
+                                        text=re.compile("Your email or password was incorrect. Please try again."))
+            if login_errors:
+                return "Login Error"
+
+            captcha_element = soup.find('img', id='auth-captcha-image')
+            refreshtimes = 0
+            captcha_guess = ''
+            if captcha_element:
+                while refreshtimes < 15:
+                    captcha_element = soup.find('img', id='auth-captcha-image')
+                    captcha_img_url = captcha_element['src']
+
+                    print captcha_img_url
+                    captcha_response = requests.get(captcha_img_url)
+
+                    img = Image.open(StringIO(captcha_response.content))
+                    captcha_guess = image_to_string(img)
+                    print 'guess: ' + captcha_guess
+
+                    if (' ' in captcha_guess) == True or captcha_guess == '':
+                        refreshcap = browser.find_element_by_id("auth-captcha-refresh-link")
+                        refreshcap.click()
+                    else:
+                        break
+                    refreshtimes += 1
+
+                if refreshtimes == 14:
+                    raise ValueError('Could not automatically solve captcha.')
+
+                print 'chosen guess: ' + captcha_guess
+
+                password = browser.find_element_by_name('password')
+                password.send_keys(amazon_login_password)
+                guess = browser.find_element_by_name('guess')
+                guess.send_keys(captcha_guess)
+                form = browser.find_element_by_name('signIn')
+                form.submit()
+
+            login_errors = soup.findAll("span", {"class": "a-list-item"},
+                                        text=re.compile("Your email or password was incorrect. Please try again."))
+            if login_errors:
+                return "Login Error"
+
+            pickle.dump(browser.get_cookies(), open("cookies.pkl", "wb"))
+
         response = browser.page_source
-        track_package = []
         soup = BeautifulSoup(response)
+        track_package = []
 
-        login_errors = soup.findAll("span", {"class": "a-list-item"}, text=re.compile("Your email or password was incorrect. Please try again."))
-        if login_errors:
-            return "Login Error"
-        # login_errors = soup.findAll("h4", {"class": "a-alert-heading"}, text=re.compile("There was a problem"))
-        # if login_errors:
-        #     return "There was a problem"
-
+        # first page:
         for link in soup.findAll('a', text=re.compile("Track package")):
             track_package.append('http://amazon.com'+link['href'])
+
+        # second page:
+        browser.get(
+            'http://amazon.com' + "/gp/your-account/order-history/ref=oh_aui_pagination_1_2?ie=UTF8&orderFilter=months-6&search=&startIndex=10")
+        response = browser.page_source
+        soup = BeautifulSoup(response)
+
+        for link in soup.findAll('a', text=re.compile("Track package")):
+            track_package.append('http://amazon.com' + link['href'])
 
         TBA_dict = defaultdict(list)
 
@@ -121,11 +142,11 @@ def get_amazon_data(amazon_login_email, amazon_login_password):
                         ama.write(TBAkey+"|"+value+"\n")
 
             print 'Successfully gathered Amazon products\' tracking numbers.'
-        # browser.quit()
+        #browser.quit()
         return 'Success'
 
     except ValueError as e:
-        # browser.quit()
+        #browser.quit()
         print e
         return ValueError
 

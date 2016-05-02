@@ -56,6 +56,9 @@ class TropicalCourier:
         widget = event.widget
         selection = widget.curselection()
         value = widget.get(selection[0])
+        if '|' in value:
+            value = [x.strip() for x in value.split('|')][0]
+        print value
 
         ordersdict = {}
 
@@ -120,13 +123,13 @@ class TropicalCourier:
 
             ready_for_pickup = soup.find('div', class_="Pan2")
             ready = ready_for_pickup.select('tr > td:nth-of-type(2)')
+            readyprice = ready_for_pickup.select('tr > td:nth-of-type(4)')
             if ready_for_pickup:
-                ready = [item.renderContents().replace('# ', '').upper() for item in ready]
+                ready = [item.renderContents().replace('# ', '').upper() + ' | ' + price.renderContents() for
+                         item, price in zip(ready, readyprice)]
             else:
                 ready = []
 
-            td_elements = soup.select("tr > td:nth-of-type(2)")
-            packages = [td.renderContents().replace('# ', '').upper() for td in td_elements]
             packages = processing + transit + trini + ready
 
             self.listbox.delete(0, END)
